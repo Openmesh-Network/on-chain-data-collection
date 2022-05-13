@@ -1,3 +1,13 @@
+# One-off files
+test_conf.config
+config.ini
+keys/*
+!keys/README.md
+
+# Log files
+*.ids 
+*.out
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -119,6 +129,17 @@ venv.bak/
 
 # mkdocs documentation
 /site
+
+# security
+*.cert
+*.key
+*.pem
+
+# Kucoin API
+src/kucoin/.env
+
+# helper bash scripts
+kafka-generate-ssl.sh
 
 # mypy
 .mypy_cache/

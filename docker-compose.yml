@@ -1,0 +1,8 @@
+services:
+  uniswap:
+    image: gdafund/l3_collectors:latest
+    command: uniswap.py
+    volumes:
+      - type: bind
+        source: ./keys
+        target: /src/keys 
