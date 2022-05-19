@@ -2,17 +2,16 @@ import json
 from tabnanny import check
 from typing import Callable
 from web3s import Web3s
+import aiohttp
+import requests
 import asyncio
 import dotenv
 import re
-from python_graphql_client import GraphqlClient
 import time
 import websockets
 import logging
 import sys
 import csv
-from uniswap import Uniswap
-import aiohttp
 
 from sink_connector.kafka_producer import KafkaProducer
 
@@ -26,9 +25,8 @@ logging.basicConfig(
 conf = dotenv.dotenv_values("./keys/.env")
 provider = Web3s.HTTPProvider(conf["INFURA_REST_ENDPOINT"])
 web3 = Web3s(provider)
-uniswap = Uniswap(version=2, provider=conf["INFURA_REST_ENDPOINT"], address=None, private_key=None)
 
-subgraph_client = GraphqlClient(endpoint="https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2")
+graph_endpoint="https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2"
 
 # Uniswap addresses
 addresses = json.load(open("./src/helpers/constants.json"))
@@ -47,9 +45,6 @@ logging.info("Starting collector")
 
 last_prices = {}
 
-def send_graph_query(query):
-    return subgraph_client.execute(query)
-
 def get_top_100_pairs(pairs, web3):
     query = """
     {
@@ -58,7 +53,8 @@ def get_top_100_pairs(pairs, web3):
       }
     }
     """
-    result = send_graph_query(query)
+    res = requests.post(url=graph_endpoint, json={"query": query})
+    result = res.json()
     for pair in result['data']['pairs']:
         pair_contract = web3.eth.contract(address=Web3s.toChecksumAddress(pair['id']), abi=uniswap_pair_abi)
         pairs.append(pair_contract)
@@ -73,7 +69,8 @@ def get_global_stats(result):
             txCount
         }
     }"""
-    query_res = send_graph_query(request)
+    res = requests.post(url=graph_endpoint, json={"query": request})
+    query_res = res.json()
     result["total_pairs"] = query_res["data"]["uniswapFactory"]["pairCount"]
     result["total_transactions"] = int(query_res["data"]["uniswapFactory"]["txCount"])
     result["total_USD_volume"] = float(query_res["data"]["uniswapFactory"]["totalVolumeUSD"])

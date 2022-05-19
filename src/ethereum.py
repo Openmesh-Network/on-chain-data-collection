@@ -2,7 +2,7 @@ import json
 import websockets
 import asyncio
 import dotenv
-from web3 import Web3
+from web3s import Web3s
 from sink_connector.kafka_producer import KafkaProducer
 import logging
 import sys
@@ -19,7 +19,7 @@ def serialize_transaction(transaction):
     """
     Helper for serializing a transaction to a dictionary
     """
-    return Web3.toJSON(transaction)
+    return Web3s.toJSON(transaction)
 
 
 async def get_all_transactions(web3, conf, producer):
@@ -29,7 +29,7 @@ async def get_all_transactions(web3, conf, producer):
         logging.info("Connected to websocket")
         while True:
             await ws.recv()
-            block = web3.eth.getBlock("latest", full_transactions=True)
+            block = await web3.eth.getBlock("latest", full_transactions=True)
             for transaction in block.transactions:
                 producer.produce(key=str(transaction.hash),
                                  msg=serialize_transaction(transaction))
@@ -41,5 +41,5 @@ async def get_all_transactions(web3, conf, producer):
 if __name__ == "__main__":
     producer = KafkaProducer("ethereum-raw")
     conf = dotenv.dotenv_values('./keys/.env')
-    web3 = Web3(Web3.WebsocketProvider(conf["INFURA_WS_ENDPOINT"]))
+    web3 = Web3s(Web3s.HTTPProvider(conf["INFURA_REST_ENDPOINT"]))
     asyncio.run(get_all_transactions(web3, conf, producer))
