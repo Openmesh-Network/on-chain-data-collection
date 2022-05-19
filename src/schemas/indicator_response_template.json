@@ -1,0 +1,11 @@
+{
+    "block_number": -1,
+    "timestamp": -1,
+    "total_pairs": -1,
+    "total_transactions": -1,
+    "total_USD_volume": -1,
+    "total_USD_liquidity": -1,
+    "num_burns_last_block": 0,
+    "num_mints_last_block": 0,
+    "num_swaps_last_block": 0
+}

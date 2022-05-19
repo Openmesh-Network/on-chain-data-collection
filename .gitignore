@@ -3,6 +3,8 @@ test_conf.config
 config.ini
 keys/*
 !keys/README.md
+*output.csv
+*/uniswap_old.py
 
 # Log files
 *.ids 
