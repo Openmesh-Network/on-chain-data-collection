@@ -29,13 +29,13 @@ web3 = Web3s(provider)
 graph_endpoint="https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2"
 
 # Uniswap addresses
-addresses = json.load(open("./src/helpers/constants.json"))
+addresses = json.load(open("./helpers/constants.json"))
 
 # Uniswap ABIs
-uniswap_router_abi = json.load(open("./src/ABIs/uniswap_router_abi.json"))
-uniswap_factory_abi = json.load(open("./src/ABIs/uniswap_factory_abi.json"))
-uniswap_pool_abi = json.load(open("./src/ABIs/uniswap_pool_abi.json"))
-uniswap_pair_abi = json.load(open("./src/ABIs/uniswap_pair_abi.json"))
+uniswap_router_abi = json.load(open("./ABIs/uniswap_router_abi.json"))
+uniswap_factory_abi = json.load(open("./ABIs/uniswap_factory_abi.json"))
+uniswap_pool_abi = json.load(open("./ABIs/uniswap_pool_abi.json"))
+uniswap_pair_abi = json.load(open("./ABIs/uniswap_pair_abi.json"))
 
 # Creating Contract objects for all the different smart contracts data will be pulled from
 factory_contract = web3.eth.contract(address=addresses["uniswap_factory"], abi=uniswap_factory_abi)
@@ -48,7 +48,7 @@ last_prices = {}
 def get_top_100_pairs(pairs, web3):
     query = """
     {
-      pairs(first: 20, orderBy: reserveUSD, orderDirection: desc) {
+      pairs(first: 100, orderBy: reserveUSD, orderDirection: desc) {
         id
       }
     }
@@ -259,7 +259,7 @@ async def main():
         await ws.recv()
         logging.info("Subscribed to websocket")
         pairs = []
-        response = json.load(open("./src/schemas/indicator_response_template.json"))
+        response = json.load(open(".//schemas/indicator_response_template.json"))
         get_top_100_pairs(pairs, web3)
         await create_tasks(pairs, response, flag, raw_producer)
         logging.info("Tasks created")
@@ -276,7 +276,8 @@ async def main():
             response["timestamp"] = int(new_block["params"]["result"]["timestamp"], 16)
             logging.info("Received new block: %d" % response["block_number"])
             new_pairs = await update_pairs(pairs, factory_event_filter, response)
-            indicators_producer.produce(key=str(response["block_number"]), msg=json.dumps(response).encode())
+            #indicators_producer.produce(key=str(response["block_number"]), msg=json.dumps(response).encode())
+            print(json.dumps(response))
             await create_tasks(new_pairs, response, flag, raw_producer)
             refresh_response(response)
             flag.set()
