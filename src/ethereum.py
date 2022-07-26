@@ -6,7 +6,7 @@ import dotenv
 from web3s import Web3s
 from web3s.datastructures import AttributeDict
 from hexbytes import HexBytes
-from sink_connector.kafka_producer import KafkaProducer
+from sink_connector.redis_producer import RedisProducer
 from helpers.normalise_transaction import normalise_transaction
 from helpers.normalise_block import normalise_block
 import logging
@@ -19,6 +19,13 @@ logging.basicConfig(
 )
 
 logging.info("Starting collector")
+
+async def produce_transactions(block_object, block_msg, redis_producer):
+    pipe = redis_producer.pool.pipeline()
+    for transaction in block_object['transactions']:
+        new_tx = normalise_transaction(transaction, block_msg)
+        pipe.xadd('ethereum-raw', fields={new_tx['tx_hash']: json.dumps(new_tx)}, maxlen=redis_producer.stream_max_len, approximate=True)
+    await pipe.execute()
 
 def serialize_transaction(transaction):
     """
@@ -51,15 +58,16 @@ async def get_all_transactions(web3, conf, producer):
             block = await web3.eth.getBlock(new_num, full_transactions=True)
             block = json.loads(json.dumps(block, cls=Web3JsonEncoder))
             block_msg = normalise_block(block)
-            for transaction in block['transactions']:
-                new_tx = normalise_transaction(transaction, block_msg)
-                producer.produce(key=new_tx["tx_hash"], msg=new_tx)
+            # for transaction in block['transactions']:
+            #     new_tx = normalise_transaction(transaction, block_msg)
+            #     producer.produce(key=new_tx["tx_hash"], msg=new_tx)
+            await produce_transactions(block, block_msg, producer)
             logging.info("Produced block number: %s", block["number"])
             old_num = new_num
 
 
 if __name__ == "__main__":
-    producer = KafkaProducer("ethereum-raw")
+    producer = RedisProducer("ethereum-raw")
     conf = dotenv.dotenv_values('./keys/.env')
     web3 = Web3s(Web3s.HTTPProvider(conf["INFURA_REST_ENDPOINT"]))
     asyncio.run(get_all_transactions(web3, conf, producer))
