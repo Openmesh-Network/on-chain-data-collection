@@ -4,7 +4,6 @@ import asyncio
 import json
 import requests
 from web3 import Web3
-from web3s.datastructures import AttributeDict
 from hexbytes import HexBytes
 import time
 from sink_connector.redis_producer import RedisProducer
@@ -122,7 +121,7 @@ async def handle_events():
 
     web3 = Web3(Web3.WebsocketProvider(ws_endpoint))
 
-    contract_as_parser = web3.eth.contract(address=contract_addr, abi=json.load(open("./src/ABIs/uniswap_pair_abi.json")))
+    contract_as_parser = web3.eth.contract(address=contract_addr, abi=json.load(open("ABIs/uniswap_pair_abi.json")))
 
     event_filter_sub_message = {
         "jsonrpc": "2.0",

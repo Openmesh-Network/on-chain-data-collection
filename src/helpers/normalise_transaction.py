@@ -17,7 +17,7 @@ def normalise_transaction(transaction, block_msg):
     res["tx_hash"] = transaction["hash"]
     res["from"] = transaction["from"]
     res["to"] = transaction["to"]
-    res["gas"] = transaction["gas"]
-    res["gas_price"] = transaction["gasPrice"]
-    res["value"] = transaction["value"]
+    res["gas"] = int(transaction["gas"], 16)
+    res["gas_price"] = int(transaction["gasPrice"], 16)
+    res["value"] = int(transaction["value"], 16)
     return res

@@ -1,6 +1,6 @@
 import asyncio
-from uniswap_helpers.event_subscriber import handle_events
-from uniswap_helpers.indicators_collector import collect_indicators
+from uniswap_helpers.v2_event_subscriber import handle_events
+from uniswap_helpers.v3_indicators_collector import collect_indicators
 import logging
 
 logging.basicConfig(level=logging.INFO)

@@ -12,9 +12,9 @@ def normalise_block(block):
     Helper for normalising a block
     """
     res = template.copy()
-    res["block_num"] = block["number"]
+    res["block_num"] = int(block["number"], 16)
     res["block_hash"] = block["hash"]
-    res["block_timestamp"] = block["timestamp"]
+    res["block_timestamp"] = int(block["timestamp"], 16)
     res["miner"] = block["miner"]
     res["parent_hash"] = block["parentHash"]
     res["num_transactions"] = len(block["transactions"])
