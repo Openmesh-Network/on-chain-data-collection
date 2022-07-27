@@ -51,16 +51,13 @@ async def get_all_transactions(web3, conf, producer):
             new_block = await ws.recv()
             new_num = int(json.loads(new_block)["params"]["result"]["number"], 16)
             if new_num == old_num:
-                logging.error("Getting same block twice")
+                logging.warning("Getting same block twice")
                 continue
             if old_num != -1 and new_num > old_num + 1:
-                logging.error("One or more blocks have been skipped")
+                logging.warning("One or more blocks have been skipped")
             block = await web3.eth.getBlock(new_num, full_transactions=True)
             block = json.loads(json.dumps(block, cls=Web3JsonEncoder))
             block_msg = normalise_block(block)
-            # for transaction in block['transactions']:
-            #     new_tx = normalise_transaction(transaction, block_msg)
-            #     producer.produce(key=new_tx["tx_hash"], msg=new_tx)
             await produce_transactions(block, block_msg, producer)
             logging.info("Produced block number: %s", block["number"])
             old_num = new_num
