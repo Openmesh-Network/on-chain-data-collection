@@ -1,4 +1,3 @@
-from concurrent.futures import process
 import dotenv
 import websockets
 import asyncio
@@ -17,7 +16,7 @@ logging.basicConfig(
     format="[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s",
 )
 
-graph_endpoint="https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2"
+graph_endpoint="https://api.thegraph.com/subgraphs/name/dodoex/dodoex-v2"
 
 class Web3JsonEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -30,28 +29,30 @@ class Web3JsonEncoder(json.JSONEncoder):
 def get_top_100_pairs():
     query = """
     {
-      pairs(first: 100, orderBy: reserveUSD, orderDirection: desc) {
-        id
-        token0 {
-            name
-            symbol
+        pairs(first: 100, orderBy: volumeUSD, orderDirection: desc, where: {type_not: "VIRTUAL"}) {
+            id
+            baseToken {
+                name
+                symbol
+            }
+            quoteToken {
+                name
+                symbol
+            }
+            type
         }
-        token1 {
-            name
-            symbol
-        }
-      }
     }
+
     """
     pairs = {}
     res = requests.post(url=graph_endpoint, json={"query": query})
     result = res.json()
     for pair in result['data']['pairs']:
         pairs[pair['id']] = {
-            'token0Name': pair['token0']['name'],
-            'token1Name': pair['token1']['name'],
-            'token0Symbol': pair['token0']['symbol'],
-            'token1Symbol': pair['token1']['symbol']
+            'baseTokenName': pair['baseToken']['name'],
+            'quoteTokenName': pair['quoteToken']['name'],
+            'baseTokenSymbol': pair['baseToken']['symbol'],
+            'quoteTokenSymbol': pair['quoteToken']['symbol']
         }
     return pairs
 
@@ -75,34 +76,31 @@ def convert_dict_to_hexbytes(dict_):
             convert_list_to_hexbytes(dict_[key])
     return dict_
 
-def process_swap_log(contract, hex_log):
-    processed_log = contract.events.Swap().processLog(hex_log)
+def process_base_buy(contract, hex_log):
+    processed_log = contract.events.BuyBaseToken().processLog(hex_log)
     return processed_log
 
-def process_mint_log(contract, hex_log):
-    processed_log = contract.events.Mint().processLog(hex_log)
-    return processed_log
-
-def process_burn_log(contract, hex_log):
-    processed_log = contract.events.Burn().processLog(hex_log)
+def process_base_sell(contract, hex_log):
+    processed_log = contract.events.SellBaseToken().processLog(hex_log)
     return processed_log
 
 def process_pair_log(contract, log, topics, pairs):
     log_topic_0 = log['topics'][0]
     hex_log = convert_dict_to_hexbytes(log.copy())
     process_function = topics[log_topic_0]
+    print(json.dumps(hex_log, cls=Web3JsonEncoder, indent=4))
     processed_log = process_function(contract, hex_log).__dict__
     event_pair_info = pairs[processed_log['address'].hex()]
     processed_log['blockNumber'] = int(processed_log['blockNumber'].hex(), 16)
     processed_log['logIndex'] = int(processed_log['logIndex'].hex(), 16)
     processed_log['transactionIndex'] = int(processed_log['transactionIndex'].hex(), 16)
     processed_log['type'] = processed_log.pop('event')
-    processed_log['exchange'] = 'UniswapV2'
+    processed_log['exchange'] = 'DoDoEx'
     processed_log['data'] = processed_log.pop('args').__dict__
-    processed_log['data']['token0Name'] = event_pair_info['token0Name']
-    processed_log['data']['token1Name'] = event_pair_info['token1Name']
-    processed_log['data']['token0Symbol'] = event_pair_info['token0Symbol']
-    processed_log['data']['token1Symbol'] = event_pair_info['token1Symbol']
+    processed_log['data']['baseTokenName'] = event_pair_info['baseTokenName']
+    processed_log['data']['quoteTokenName'] = event_pair_info['quoteTokenName']
+    processed_log['data']['baseTokenSymbol'] = event_pair_info['baseTokenSymbol']
+    processed_log['data']['quoteTokenSymbol'] = event_pair_info['quoteTokenSymbol']
     processed_log['processedTimestamp'] = int(time.time() * (10 ** 3))
     return processed_log
 
@@ -115,15 +113,15 @@ async def subscribe_to_logs(ws, pair, msg, topics):
 async def handle_events():
     conf = dotenv.dotenv_values("./keys/.env")
     ws_endpoint = conf["INFURA_WS_ENDPOINT"]
-    # Topics for Swaps, Mints, Burns, respectively. Maps to processing function
+    # Topics for buys and sells, mapping to event handlers
     topics = {
-        "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822": process_swap_log, "0x4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f": process_mint_log, "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496": process_burn_log
+        "0xd8648b6ac54162763c86fd54bf2005af8ecd2f9cb273a5775921fd7f91e17b2d": process_base_sell, "0xe93ad76094f247c0dafc1c61adc2187de1ac2738f7a3b49cb20b2263420251a3": process_base_buy
     }
-    contract_addr = "0xAE461cA67B15dc8dc81CE7615e0320dA1A9aB8D5"
+    contract_addr = "0x8876819535b48b551C9e97EBc07332C7482b4b2d"
 
     web3 = Web3(Web3.WebsocketProvider(ws_endpoint))
 
-    contract_as_parser = web3.eth.contract(address=contract_addr, abi=json.load(open("ABIs/uniswap_pair_abi.json")))
+    contract_as_parser = web3.eth.contract(address=contract_addr, abi=json.load(open("src/ABIs/dodo_pair_abi.json")))
 
     event_filter_sub_message = {
         "jsonrpc": "2.0",
@@ -140,14 +138,14 @@ async def handle_events():
 
     pairs = get_top_100_pairs()
 
-    producer = RedisProducer('uniswap-raw')
+    producer = RedisProducer('dodo-raw')
 
     async with websockets.connect(ws_endpoint) as infura_connection:
         tasks = []
         for pair in pairs.keys():
             tasks.append(subscribe_to_logs(infura_connection, pair, event_filter_sub_message.copy(), topics))
         await asyncio.gather(*tasks)
-        for _ in range(len(pairs) * 3):
+        for _ in range(len(pairs) * len(topics)):
             msg = await infura_connection.recv()
             while "result" not in json.loads(msg):
                 msg = await infura_connection.recv()
