@@ -5,7 +5,7 @@ WORKDIR /src
 COPY src/ .
 RUN apk add --no-cache gcc musl-dev librdkafka-dev
 COPY requirements.txt requirements.txt
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install -r requirements.txt
 COPY config.ini ./
 ENTRYPOINT ["python3"]
-CMD ["uniswap.py"]
+CMD ["ethereum.py"]

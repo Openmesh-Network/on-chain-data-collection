@@ -5,4 +5,11 @@ services:
     volumes:
       - type: bind
         source: ./keys
+        target: /src/keys
+  ethereum:
+    image: gdafund/on-chain-data-collection:latest
+    command: ethereum.py
+    volumes:
+      - type: bind
+        source: ./keys
         target: /src/keys 

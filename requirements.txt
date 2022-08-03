@@ -1,6 +1,8 @@
-aiohttp==3.6.2
+aiohttp==3.8.1
+aioredis==2.0.1
 confluent_kafka==1.8.2
+hexbytes==0.2.0
 python-dotenv==0.20.0
 requests==2.22.0
-web3s==4.9.5
-websockets==10.3
+web3==5.29.2
+websockets<10
